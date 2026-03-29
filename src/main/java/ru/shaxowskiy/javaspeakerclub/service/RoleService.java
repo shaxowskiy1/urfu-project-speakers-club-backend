@@ -13,6 +13,7 @@ import ru.shaxowskiy.javaspeakerclub.jooq.tables.records.UsersRecord;
 import ru.shaxowskiy.javaspeakerclub.repository.RoleRepository;
 import ru.shaxowskiy.javaspeakerclub.repository.UserRepository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -61,6 +62,28 @@ public class RoleService {
                 .toList();
     }
 
+    @Transactional
+    public SpeakerResponse updateNps(Long id, BigDecimal nps) {
+        if (nps != null && (nps.compareTo(BigDecimal.ZERO) < 0 || nps.compareTo(BigDecimal.TEN) > 0)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "NPS must be between 0 and 10.0");
+        }
+
+        UsersRecord updated = userRepository.updateNps(id, nps)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Speaker not found: " + id));
+
+        return toSpeakerResponse(updated);
+    }
+
+    @Transactional(readOnly = true)
+    public SpeakerResponse findSpeakerById(Long id) {
+        UsersRecord user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Speaker not found: " + id));
+
+        return toSpeakerResponse(user);
+    }
+
     private SpeakerResponse toSpeakerResponse(UsersRecord user) {
         List<RoleResponse> roles = roleRepository.findBySpeakerId(user.getId()).stream()
                 .map(this::toResponse)
@@ -68,6 +91,7 @@ public class RoleService {
         return new SpeakerResponse(
                 user.getId(),
                 user.getUsername(),
+                user.getNps(),
                 user.getCreatedDate(),
                 roles
         );

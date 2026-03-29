@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/0003_create_lectures_table.yaml
   - include:
       file: db/changelog/0004_create_speaker_roles_table.yaml
+  - include:
+      file: db/changelog/0005_add_nps_to_users.yaml

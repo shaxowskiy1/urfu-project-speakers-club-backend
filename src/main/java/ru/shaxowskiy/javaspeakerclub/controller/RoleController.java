@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.shaxowskiy.javaspeakerclub.dto.NpsUpdateRequest;
 import ru.shaxowskiy.javaspeakerclub.dto.RoleCreateRequest;
 import ru.shaxowskiy.javaspeakerclub.dto.RoleResponse;
 import ru.shaxowskiy.javaspeakerclub.dto.SpeakerResponse;
@@ -43,5 +44,15 @@ public class RoleController {
     @GetMapping("/speakers")
     public List<SpeakerResponse> findSpeakersByRole(@RequestParam(required = false) String role) {
         return roleService.findSpeakersByRole(role);
+    }
+
+    @GetMapping("/speakers/{id}")
+    public SpeakerResponse findSpeakerById(@PathVariable Long id) {
+        return roleService.findSpeakerById(id);
+    }
+
+    @PutMapping("/speakers/{id}/nps")
+    public SpeakerResponse updateNps(@PathVariable Long id, @RequestBody NpsUpdateRequest request) {
+        return roleService.updateNps(id, request.nps());
     }
 }
