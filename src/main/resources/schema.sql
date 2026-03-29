@@ -34,3 +34,14 @@ CREATE TABLE lectures (
 
 CREATE INDEX idx_lectures_talk_id ON lectures (talk_id);
 CREATE INDEX idx_lectures_speaker_id ON lectures (speaker_id);
+
+CREATE TABLE speaker_roles (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  speaker_id BIGINT NOT NULL,
+  created_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_speaker_roles_users_speaker_id FOREIGN KEY (speaker_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_speaker_roles_speaker_id ON speaker_roles (speaker_id);
+CREATE INDEX idx_speaker_roles_name ON speaker_roles (name);
