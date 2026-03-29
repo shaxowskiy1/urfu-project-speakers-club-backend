@@ -20,6 +20,12 @@ public class UserRepository {
                 .fetchOptional();
     }
 
+    public Optional<UsersRecord> findById(Long id) {
+        return dsl.selectFrom(Users.USERS)
+                .where(Users.USERS.ID.eq(id))
+                .fetchOptional();
+    }
+
     public UsersRecord save(String username, String encodedPassword) {
         return dsl.insertInto(Users.USERS)
                 .set(Users.USERS.USERNAME, username)

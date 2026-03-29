@@ -66,8 +66,8 @@ public class ProfileController {
                         r.getId() == null ? null : r.getId().toString(),
                         r.getTopic(),
                         r.getTalkDate(),
-                        r.getConferenceType() == null ? null : r.getConferenceType().name(),
-                        r.getFormat() == null ? null : r.getFormat().name(),
+                        r.getConferenceType(),
+                        r.getFormat(),
                         r.getActivityName(),
                         r.getActivityDate(),
                         r.getCreatedDate()
