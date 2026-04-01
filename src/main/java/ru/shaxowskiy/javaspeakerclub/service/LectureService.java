@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import ru.shaxowskiy.javaspeakerclub.dto.LectureCreateRequest;
 import ru.shaxowskiy.javaspeakerclub.dto.LectureResponse;
@@ -23,6 +24,7 @@ public class LectureService {
     private final LectureRepository lectureRepository;
     private final TalkRepository talkRepository;
     private final UserRepository userRepository;
+    private final MinioService minioService;
 
     @Transactional(readOnly = true)
     public List<LectureResponse> findByTalkId(UUID talkId) {
@@ -80,6 +82,50 @@ public class LectureService {
         if (!lectureRepository.deleteById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + id);
         }
+    }
+
+    @Transactional
+    public LectureResponse uploadMedia(String lectureTitle, MultipartFile file) {
+        LecturesRecord lecture = lectureRepository.findByTitle(lectureTitle)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Lecture not found by title: " + lectureTitle));
+
+        String oldKey = lecture.getMediaS3Key();
+        String objectKey = minioService.uploadFile(lecture.getId().toString(), file);
+
+        LecturesRecord updated = lectureRepository.updateMediaS3Key(lecture.getId(), objectKey)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR, "Failed to update media key for lecture: " + lecture.getId()));
+
+        minioService.deleteFile(oldKey);
+
+        return toResponse(updated);
+    }
+
+    @Transactional(readOnly = true)
+    public String getMediaUrl(UUID lectureId) {
+        LecturesRecord lecture = lectureRepository.findById(lectureId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + lectureId));
+
+        if (lecture.getMediaS3Key() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture has no media attached: " + lectureId);
+        }
+
+        return minioService.getPresignedUrl(lecture.getMediaS3Key());
+    }
+
+    @Transactional
+    public void deleteMedia(UUID lectureId) {
+        LecturesRecord lecture = lectureRepository.findById(lectureId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + lectureId));
+
+        if (lecture.getMediaS3Key() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture has no media attached: " + lectureId);
+        }
+
+        String mediaKey = lecture.getMediaS3Key();
+        lectureRepository.updateMediaS3Key(lectureId, null);
+        minioService.deleteFile(mediaKey);
     }
 
     private LectureResponse toResponse(LecturesRecord record) {

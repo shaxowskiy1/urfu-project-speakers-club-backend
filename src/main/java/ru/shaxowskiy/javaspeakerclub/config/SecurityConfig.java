@@ -17,7 +17,7 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/", "/home", "/sign-on", "/sign-in").permitAll()
-                .requestMatchers("/api/talks/**", "/api/lectures/**", "/api/roles/**", "/api/speakers/**").permitAll()
+                .requestMatchers("/api/talks/**", "/api/lectures/**", "/api/roles/**", "/api/speakers/**", "/api/media/**").permitAll()
                 .anyRequest().authenticated()
             )
             .csrf(csrf -> csrf

@@ -62,4 +62,19 @@ public class LectureRepository {
                 .where(Lectures.LECTURES.ID.eq(id))
                 .execute() > 0;
     }
+
+    public Optional<LecturesRecord> findByTitle(String title) {
+        return dsl.selectFrom(Lectures.LECTURES)
+                .where(Lectures.LECTURES.TITLE.eq(title))
+                .fetchOptional();
+    }
+
+    public Optional<LecturesRecord> updateMediaS3Key(UUID id, String mediaS3Key) {
+        int updated = dsl.update(Lectures.LECTURES)
+                .set(Lectures.LECTURES.MEDIA_S3_KEY, mediaS3Key)
+                .where(Lectures.LECTURES.ID.eq(id))
+                .execute();
+
+        return updated > 0 ? findById(id) : Optional.empty();
+    }
 }
