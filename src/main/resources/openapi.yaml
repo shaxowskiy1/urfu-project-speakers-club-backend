@@ -1,0 +1,608 @@
+openapi: 3.1.0
+info:
+  title: Java Speaker Club API
+  description: API для управления докладами и лекциями спикеров
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Регистрация и аутентификация
+  - name: Profile
+    description: Профиль текущего пользователя
+  - name: Talks
+    description: Управление докладами
+  - name: Lectures
+    description: Управление лекциями
+
+paths:
+
+  # ── Auth ────────────────────────────────────────────────────────────
+
+  /api/auth/sign-on:
+    post:
+      tags: [Auth]
+      summary: Регистрация нового пользователя
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Пользователь зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Ошибка регистрации (например, username уже занят)
+
+  /api/auth/sign-in:
+    post:
+      tags: [Auth]
+      summary: Аутентификация пользователя
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Неверные учётные данные
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Выход из системы
+      operationId: logout
+      responses:
+        '200':
+          description: Успешный выход
+
+  # ── Profile ─────────────────────────────────────────────────────────
+
+  /api/me:
+    get:
+      tags: [Profile]
+      summary: Профиль текущего аутентифицированного пользователя
+      operationId: me
+      security:
+        - session: []
+      responses:
+        '200':
+          description: Профиль и доклады пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          description: Пользователь не аутентифицирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  # ── Talks ───────────────────────────────────────────────────────────
+
+  /api/talks:
+    get:
+      tags: [Talks]
+      summary: Список всех докладов
+      operationId: findAllTalks
+      parameters:
+        - name: conferenceType
+          in: query
+          required: false
+          description: Фильтр по типу конференции
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список докладов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TalkResponse'
+
+    post:
+      tags: [Talks]
+      summary: Создать новый доклад
+      operationId: createTalk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TalkCreateRequest'
+      responses:
+        '201':
+          description: Доклад создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TalkResponse'
+        '400':
+          description: Спикер не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/talks/{id}:
+    get:
+      tags: [Talks]
+      summary: Получить доклад по ID
+      operationId: findTalkById
+      parameters:
+        - $ref: '#/components/parameters/TalkId'
+      responses:
+        '200':
+          description: Доклад найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TalkResponse'
+        '404':
+          description: Доклад не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+    put:
+      tags: [Talks]
+      summary: Обновить доклад
+      operationId: updateTalk
+      parameters:
+        - $ref: '#/components/parameters/TalkId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TalkUpdateRequest'
+      responses:
+        '200':
+          description: Доклад обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TalkResponse'
+        '404':
+          description: Доклад не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+    delete:
+      tags: [Talks]
+      summary: Удалить доклад
+      operationId: deleteTalk
+      parameters:
+        - $ref: '#/components/parameters/TalkId'
+      responses:
+        '204':
+          description: Доклад удалён
+        '404':
+          description: Доклад не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  # ── Lectures ────────────────────────────────────────────────────────
+
+  /api/lectures/by-talk/{talkId}:
+    get:
+      tags: [Lectures]
+      summary: Лекции по ID доклада
+      operationId: findLecturesByTalkId
+      parameters:
+        - name: talkId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список лекций
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LectureResponse'
+        '404':
+          description: Доклад не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/lectures/by-speaker/{speakerId}:
+    get:
+      tags: [Lectures]
+      summary: Лекции по ID спикера
+      operationId: findLecturesBySpeakerId
+      parameters:
+        - name: speakerId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Список лекций
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LectureResponse'
+        '404':
+          description: Спикер не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/lectures/{id}:
+    get:
+      tags: [Lectures]
+      summary: Получить лекцию по ID
+      operationId: findLectureById
+      parameters:
+        - $ref: '#/components/parameters/LectureId'
+      responses:
+        '200':
+          description: Лекция найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LectureResponse'
+        '404':
+          description: Лекция не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+    put:
+      tags: [Lectures]
+      summary: Обновить лекцию
+      operationId: updateLecture
+      parameters:
+        - $ref: '#/components/parameters/LectureId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LectureUpdateRequest'
+      responses:
+        '200':
+          description: Лекция обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LectureResponse'
+        '404':
+          description: Лекция не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+    delete:
+      tags: [Lectures]
+      summary: Удалить лекцию
+      operationId: deleteLecture
+      parameters:
+        - $ref: '#/components/parameters/LectureId'
+      responses:
+        '204':
+          description: Лекция удалена
+        '404':
+          description: Лекция не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/lectures:
+    post:
+      tags: [Lectures]
+      summary: Создать лекцию
+      operationId: createLecture
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LectureCreateRequest'
+      responses:
+        '201':
+          description: Лекция создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LectureResponse'
+        '400':
+          description: Доклад или спикер не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+components:
+
+  parameters:
+    TalkId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LectureId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+
+  schemas:
+
+    # ── Auth / User ─────────────────────────────────────────────────
+
+    AuthRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: johndoe
+        password:
+          type: string
+          format: password
+          example: secret123
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: johndoe
+        createdDate:
+          type: string
+          format: date-time
+        lastModifiedDate:
+          type: string
+          format: date-time
+
+    # ── Profile ─────────────────────────────────────────────────────
+
+    MeResponse:
+      type: object
+      properties:
+        me:
+          $ref: '#/components/schemas/User'
+        talks:
+          type: array
+          items:
+            $ref: '#/components/schemas/MeTalkDto'
+
+    MeTalkDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        topic:
+          type: string
+        talkDate:
+          type: string
+          format: date-time
+        conferenceType:
+          type: string
+        format:
+          type: string
+        activityName:
+          type: string
+        activityDate:
+          type: string
+          format: date-time
+        createdDate:
+          type: string
+          format: date-time
+
+    # ── Talks ───────────────────────────────────────────────────────
+
+    TalkCreateRequest:
+      type: object
+      required: [speakerId, topic, talkDate, conferenceType, format]
+      properties:
+        speakerId:
+          type: integer
+          format: int64
+          example: 1
+        topic:
+          type: string
+          example: "Виртуальные потоки в Java 25"
+        talkDate:
+          type: string
+          format: date-time
+        conferenceType:
+          type: string
+          example: MEETUP
+        format:
+          type: string
+          example: TALK
+        activityName:
+          type: string
+          example: JPoint 2026
+        activityDate:
+          type: string
+          format: date-time
+
+    TalkUpdateRequest:
+      type: object
+      properties:
+        topic:
+          type: string
+        talkDate:
+          type: string
+          format: date-time
+        conferenceType:
+          type: string
+        format:
+          type: string
+        activityName:
+          type: string
+        activityDate:
+          type: string
+          format: date-time
+
+    TalkResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        speakerId:
+          type: integer
+          format: int64
+        speakerUsername:
+          type: string
+        topic:
+          type: string
+        talkDate:
+          type: string
+          format: date-time
+        conferenceType:
+          type: string
+        format:
+          type: string
+        activityName:
+          type: string
+        activityDate:
+          type: string
+          format: date-time
+        createdDate:
+          type: string
+          format: date-time
+        lectures:
+          type: array
+          items:
+            $ref: '#/components/schemas/LectureResponse'
+
+    # ── Lectures ────────────────────────────────────────────────────
+
+    LectureCreateRequest:
+      type: object
+      required: [title, talkId, speakerId]
+      properties:
+        title:
+          type: string
+          example: "Введение в Project Loom"
+        talkId:
+          type: string
+          format: uuid
+        speakerId:
+          type: integer
+          format: int64
+          example: 1
+        mediaS3Key:
+          type: string
+          nullable: true
+          example: lectures/2026/03/intro-loom.pdf
+
+    LectureUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        mediaS3Key:
+          type: string
+          nullable: true
+
+    LectureResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        talkId:
+          type: string
+          format: uuid
+        speakerId:
+          type: integer
+          format: int64
+        mediaS3Key:
+          type: string
+          nullable: true
+        createdDate:
+          type: string
+          format: date-time
+
+    # ── Common ──────────────────────────────────────────────────────
+
+    ProblemDetail:
+      type: object
+      description: RFC 9457 Problem Details
+      properties:
+        type:
+          type: string
+          format: uri
+          example: about:blank
+        title:
+          type: string
+          example: Not Found
+        status:
+          type: integer
+          example: 404
+        detail:
+          type: string
+          example: "Talk not found: 550e8400-e29b-41d4-a716-446655440000"
+        instance:
+          type: string
+          format: uri

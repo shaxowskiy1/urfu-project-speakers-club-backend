@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0005
+      author: loonklage
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: nps
+                  type: DECIMAL(3,1)
+                  constraints:
+                    nullable: true
+        - sql:
+            sql: |
+              ALTER TABLE users ADD CONSTRAINT chk_users_nps CHECK (nps >= 0 AND nps <= 10.0);
