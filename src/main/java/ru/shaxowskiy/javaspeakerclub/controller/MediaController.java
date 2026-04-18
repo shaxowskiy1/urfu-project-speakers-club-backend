@@ -8,10 +8,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 import ru.shaxowskiy.javaspeakerclub.dto.LectureResponse;
 import ru.shaxowskiy.javaspeakerclub.service.LectureService;
-import ru.shaxowskiy.javaspeakerclub.service.MinioService;
 
 import java.io.InputStream;
 import java.util.UUID;
@@ -22,27 +20,20 @@ import java.util.UUID;
 public class MediaController {
 
     private final LectureService lectureService;
-    private final MinioService minioService;
 
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/upload/{lectureId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public LectureResponse uploadMedia(
-            @RequestParam("lectureTitle") String lectureTitle,
+            @PathVariable UUID lectureId,
             @RequestPart("file") MultipartFile file) {
-        return lectureService.uploadMedia(lectureTitle, file);
+        return lectureService.uploadMedia(lectureId, file);
     }
 
     @GetMapping("/download/{lectureId}")
     public ResponseEntity<InputStreamResource> downloadMedia(@PathVariable UUID lectureId) {
-        LectureResponse lecture = lectureService.findById(lectureId);
-
-        if (lecture.mediaS3Key() == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "Lecture has no media attached: " + lectureId);
-        }
-
-        String filename = extractFilename(lecture.mediaS3Key());
-        InputStream stream = minioService.getFile(lecture.mediaS3Key());
+        LectureService.MediaContent media = lectureService.getMedia(lectureId);
+        InputStream stream = media.stream();
+        String filename = media.filename();
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
@@ -62,15 +53,4 @@ public class MediaController {
         return ResponseEntity.noContent().build();
     }
 
-    private String extractFilename(String objectKey) {
-        if (objectKey == null || objectKey.isBlank()) {
-            return "download";
-        }
-        if (!objectKey.contains("/")) {
-            return objectKey;
-        }
-        String name = objectKey.substring(objectKey.lastIndexOf('/') + 1);
-        int uuidSeparator = name.indexOf('_');
-        return uuidSeparator > 0 ? name.substring(uuidSeparator + 1) : name;
-    }
 }

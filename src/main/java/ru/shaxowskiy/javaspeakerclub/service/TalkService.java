@@ -9,10 +9,8 @@ import ru.shaxowskiy.javaspeakerclub.dto.LectureResponse;
 import ru.shaxowskiy.javaspeakerclub.dto.TalkCreateRequest;
 import ru.shaxowskiy.javaspeakerclub.dto.TalkResponse;
 import ru.shaxowskiy.javaspeakerclub.dto.TalkUpdateRequest;
-import ru.shaxowskiy.javaspeakerclub.jooq.tables.records.LecturesRecord;
 import ru.shaxowskiy.javaspeakerclub.jooq.tables.records.TalksRecord;
 import ru.shaxowskiy.javaspeakerclub.jooq.tables.records.UsersRecord;
-import ru.shaxowskiy.javaspeakerclub.repository.LectureRepository;
 import ru.shaxowskiy.javaspeakerclub.repository.TalkRepository;
 import ru.shaxowskiy.javaspeakerclub.repository.UserRepository;
 
@@ -24,8 +22,8 @@ import java.util.UUID;
 public class TalkService {
 
     private final TalkRepository talkRepository;
-    private final LectureRepository lectureRepository;
     private final UserRepository userRepository;
+    private final LectureService lectureService;
 
     @Transactional(readOnly = true)
     public List<TalkResponse> findAll() {
@@ -92,9 +90,7 @@ public class TalkService {
                 .map(UsersRecord::getUsername)
                 .orElse(null);
 
-        List<LectureResponse> lectures = lectureRepository.findByTalkId(record.getId()).stream()
-                .map(this::toLectureResponse)
-                .toList();
+        List<LectureResponse> lectures = lectureService.findByTalkId(record.getId());
 
         return new TalkResponse(
                 record.getId(),
@@ -111,14 +107,4 @@ public class TalkService {
         );
     }
 
-    private LectureResponse toLectureResponse(LecturesRecord record) {
-        return new LectureResponse(
-                record.getId(),
-                record.getTitle(),
-                record.getTalkId(),
-                record.getSpeakerId(),
-                record.getMediaS3Key(),
-                record.getCreatedDate()
-        );
-    }
 }

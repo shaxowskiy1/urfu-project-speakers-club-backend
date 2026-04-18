@@ -14,6 +14,7 @@ import ru.shaxowskiy.javaspeakerclub.repository.LectureRepository;
 import ru.shaxowskiy.javaspeakerclub.repository.TalkRepository;
 import ru.shaxowskiy.javaspeakerclub.repository.UserRepository;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 
@@ -64,15 +65,14 @@ public class LectureService {
         LecturesRecord record = lectureRepository.create(
                 request.title(),
                 request.talkId(),
-                request.speakerId(),
-                request.mediaS3Key()
+                request.speakerId()
         );
         return toResponse(record);
     }
 
     @Transactional
     public LectureResponse update(UUID id, LectureUpdateRequest request) {
-        LecturesRecord updated = lectureRepository.update(id, request.title(), request.mediaS3Key())
+        LecturesRecord updated = lectureRepository.update(id, request.title())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + id));
         return toResponse(updated);
     }
@@ -85,10 +85,10 @@ public class LectureService {
     }
 
     @Transactional
-    public LectureResponse uploadMedia(String lectureTitle, MultipartFile file) {
-        LecturesRecord lecture = lectureRepository.findByTitle(lectureTitle)
+    public LectureResponse uploadMedia(UUID lectureId, MultipartFile file) {
+        LecturesRecord lecture = lectureRepository.findById(lectureId)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Lecture not found by title: " + lectureTitle));
+                        HttpStatus.NOT_FOUND, "Lecture not found: " + lectureId));
 
         String oldKey = lecture.getMediaS3Key();
         String objectKey = minioService.uploadFile(lecture.getId().toString(), file);
@@ -114,6 +114,21 @@ public class LectureService {
         return minioService.getPresignedUrl(lecture.getMediaS3Key());
     }
 
+    @Transactional(readOnly = true)
+    public MediaContent getMedia(UUID lectureId) {
+        LecturesRecord lecture = lectureRepository.findById(lectureId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + lectureId));
+
+        String mediaKey = lecture.getMediaS3Key();
+        if (mediaKey == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture has no media attached: " + lectureId);
+        }
+
+        String filename = extractFilename(mediaKey);
+        InputStream stream = minioService.getFile(mediaKey);
+        return new MediaContent(filename, stream);
+    }
+
     @Transactional
     public void deleteMedia(UUID lectureId) {
         LecturesRecord lecture = lectureRepository.findById(lectureId)
@@ -129,13 +144,32 @@ public class LectureService {
     }
 
     private LectureResponse toResponse(LecturesRecord record) {
+        boolean hasMedia = record.getMediaS3Key() != null;
+        String mediaFilename = hasMedia ? extractFilename(record.getMediaS3Key()) : null;
+        String mediaMime = hasMedia ? minioService.getContentType(record.getMediaS3Key()) : null;
         return new LectureResponse(
                 record.getId(),
                 record.getTitle(),
                 record.getTalkId(),
                 record.getSpeakerId(),
-                record.getMediaS3Key(),
+                hasMedia,
+                mediaFilename,
+                mediaMime,
                 record.getCreatedDate()
         );
     }
+
+    private String extractFilename(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return "download";
+        }
+        if (!objectKey.contains("/")) {
+            return objectKey;
+        }
+        String name = objectKey.substring(objectKey.lastIndexOf('/') + 1);
+        int uuidSeparator = name.indexOf('_');
+        return uuidSeparator > 0 ? name.substring(uuidSeparator + 1) : name;
+    }
+
+    public record MediaContent(String filename, InputStream stream) {}
 }

@@ -533,39 +533,38 @@ paths:
 
   # ── Media ───────────────────────────────────────────────────────────
 
-  /api/media/upload:
-    post:
-      tags: [Media]
-      summary: Загрузить медиафайл для лекции
-      operationId: uploadMedia
-      requestBody:
-        required: true
+/api/media/upload/{lectureId}:
+  post:
+    tags: [Media]
+    summary: Загрузить медиафайл для лекции
+    operationId: uploadMedia
+    parameters:
+      - $ref: '#/components/parameters/MediaLectureId'
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file:
+                type: string
+                format: binary
+                description: Загружаемый файл
+    responses:
+      '201':
+        description: Медиафайл загружен
         content:
-          multipart/form-data:
+          application/json:
             schema:
-              type: object
-              required: [lectureTitle, file]
-              properties:
-                lectureTitle:
-                  type: string
-                  description: Название лекции, к которой привязывается файл
-                file:
-                  type: string
-                  format: binary
-                  description: Загружаемый файл
-      responses:
-        '201':
-          description: Медиафайл загружен
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LectureResponse'
-        '400':
-          description: Ошибка загрузки
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
+              $ref: '#/components/schemas/LectureResponse'
+      '400':
+        description: Ошибка загрузки
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProblemDetail'
 
   /api/media/download/{lectureId}:
     get:
@@ -835,7 +834,7 @@ components:
 
     LectureCreateRequest:
       type: object
-      required: [title, talkId, speakerId]
+    required: [title, talkId, speakerId]
       properties:
         title:
           type: string
@@ -847,19 +846,12 @@ components:
           type: integer
           format: int64
           example: 1
-        mediaS3Key:
-          type: string
-          nullable: true
-          example: lectures/2026/03/intro-loom.pdf
 
     LectureUpdateRequest:
       type: object
       properties:
         title:
           type: string
-        mediaS3Key:
-          type: string
-          nullable: true
 
     LectureResponse:
       type: object
@@ -875,9 +867,19 @@ components:
         speakerId:
           type: integer
           format: int64
-        mediaS3Key:
-          type: string
-          nullable: true
+      hasMedia:
+        type: boolean
+        description: Есть ли прикрепленный медиафайл
+      mediaFilename:
+        type: string
+        nullable: true
+        description: Оригинальное имя файла
+        example: presentation.pdf
+      mediaMime:
+        type: string
+        nullable: true
+        description: MIME тип медиафайла (если доступен)
+        example: application/pdf
         createdDate:
           type: string
           format: date-time

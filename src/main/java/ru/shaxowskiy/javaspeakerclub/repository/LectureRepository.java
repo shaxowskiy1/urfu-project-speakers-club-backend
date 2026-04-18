@@ -29,21 +29,19 @@ public class LectureRepository {
                 .fetchOptional();
     }
 
-    public LecturesRecord create(String title, UUID talkId, Long speakerId, String mediaS3Key) {
+    public LecturesRecord create(String title, UUID talkId, Long speakerId) {
         return dsl.insertInto(Lectures.LECTURES)
                 .set(Lectures.LECTURES.ID, UUID.randomUUID())
                 .set(Lectures.LECTURES.TITLE, title)
                 .set(Lectures.LECTURES.TALK_ID, talkId)
                 .set(Lectures.LECTURES.SPEAKER_ID, speakerId)
-                .set(Lectures.LECTURES.MEDIA_S3_KEY, mediaS3Key)
                 .returning()
                 .fetchOne();
     }
 
-    public Optional<LecturesRecord> update(UUID id, String title, String mediaS3Key) {
+    public Optional<LecturesRecord> update(UUID id, String title) {
         int updated = dsl.update(Lectures.LECTURES)
                 .set(Lectures.LECTURES.TITLE, title)
-                .set(Lectures.LECTURES.MEDIA_S3_KEY, mediaS3Key)
                 .where(Lectures.LECTURES.ID.eq(id))
                 .execute();
 
@@ -61,12 +59,6 @@ public class LectureRepository {
         return dsl.deleteFrom(Lectures.LECTURES)
                 .where(Lectures.LECTURES.ID.eq(id))
                 .execute() > 0;
-    }
-
-    public Optional<LecturesRecord> findByTitle(String title) {
-        return dsl.selectFrom(Lectures.LECTURES)
-                .where(Lectures.LECTURES.TITLE.eq(title))
-                .fetchOptional();
     }
 
     public Optional<LecturesRecord> updateMediaS3Key(UUID id, String mediaS3Key) {

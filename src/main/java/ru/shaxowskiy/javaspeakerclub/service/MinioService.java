@@ -95,6 +95,19 @@ public class MinioService {
         }
     }
 
+    public String getContentType(String objectKey) {
+        try {
+            return minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(s3Properties.getBucket())
+                            .object(objectKey)
+                            .build()
+            ).contentType();
+        } catch (Exception e) {
+            throw new StorageException("Failed to fetch content type for: " + objectKey, e);
+        }
+    }
+
     public void deleteFile(String objectKey) {
         if (objectKey == null) {
             return;
