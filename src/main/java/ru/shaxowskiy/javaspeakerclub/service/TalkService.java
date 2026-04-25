@@ -2,6 +2,8 @@ package ru.shaxowskiy.javaspeakerclub.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -13,6 +15,7 @@ import ru.shaxowskiy.javaspeakerclub.jooq.tables.records.TalksRecord;
 import ru.shaxowskiy.javaspeakerclub.jooq.tables.records.UsersRecord;
 import ru.shaxowskiy.javaspeakerclub.repository.TalkRepository;
 import ru.shaxowskiy.javaspeakerclub.repository.UserRepository;
+import ru.shaxowskiy.javaspeakerclub.security.AppRole;
 
 import java.util.List;
 import java.util.UUID;
@@ -51,6 +54,8 @@ public class TalkService {
         userRepository.findById(request.speakerId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Speaker not found: " + request.speakerId()));
 
+        requirePermissionForSpeaker(request.speakerId());
+
         TalksRecord record = talkRepository.create(
                 request.speakerId(),
                 request.topic(),
@@ -65,6 +70,11 @@ public class TalkService {
 
     @Transactional
     public TalkResponse update(UUID id, TalkUpdateRequest request) {
+        TalksRecord existing = talkRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Talk not found: " + id));
+
+        requirePermissionForSpeaker(existing.getSpeakerId());
+
         TalksRecord updated = talkRepository.update(
                 id,
                 request.topic(),
@@ -80,6 +90,11 @@ public class TalkService {
 
     @Transactional
     public void delete(UUID id) {
+        TalksRecord existing = talkRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Talk not found: " + id));
+
+        requirePermissionForSpeaker(existing.getSpeakerId());
+
         if (!talkRepository.deleteById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Talk not found: " + id);
         }
@@ -107,4 +122,35 @@ public class TalkService {
         );
     }
 
+    private void requirePermissionForSpeaker(Long speakerId) {
+        if (hasRole(AppRole.ADMIN) || hasRole(AppRole.DEVREL)) {
+            return;
+        }
+        if (hasRole(AppRole.SPEAKER)) {
+            Long current = currentUserId();
+            if (speakerId.equals(current)) {
+                return;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enough rights for this speaker");
+    }
+
+    private boolean hasRole(AppRole role) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(role.asAuthority()));
+    }
+
+    private Long currentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return userRepository.findByUsername(authentication.getName())
+                .map(UsersRecord::getId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+    }
 }

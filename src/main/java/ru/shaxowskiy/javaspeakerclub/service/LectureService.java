@@ -2,6 +2,8 @@ package ru.shaxowskiy.javaspeakerclub.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,6 +15,7 @@ import ru.shaxowskiy.javaspeakerclub.jooq.tables.records.LecturesRecord;
 import ru.shaxowskiy.javaspeakerclub.repository.LectureRepository;
 import ru.shaxowskiy.javaspeakerclub.repository.TalkRepository;
 import ru.shaxowskiy.javaspeakerclub.repository.UserRepository;
+import ru.shaxowskiy.javaspeakerclub.security.AppRole;
 
 import java.io.InputStream;
 import java.util.List;
@@ -56,11 +59,16 @@ public class LectureService {
 
     @Transactional
     public LectureResponse create(LectureCreateRequest request) {
-        talkRepository.findById(request.talkId())
+        var talk = talkRepository.findById(request.talkId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Talk not found: " + request.talkId()));
 
         userRepository.findById(request.speakerId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Speaker not found: " + request.speakerId()));
+
+        requirePermissionForSpeaker(request.speakerId());
+        if (hasRole(AppRole.SPEAKER) && !talk.getSpeakerId().equals(request.speakerId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Speaker can add lectures only to own talks");
+        }
 
         LecturesRecord record = lectureRepository.create(
                 request.title(),
@@ -72,6 +80,11 @@ public class LectureService {
 
     @Transactional
     public LectureResponse update(UUID id, LectureUpdateRequest request) {
+        LecturesRecord existing = lectureRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + id));
+
+        requirePermissionForSpeaker(existing.getSpeakerId());
+
         LecturesRecord updated = lectureRepository.update(id, request.title())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + id));
         return toResponse(updated);
@@ -79,6 +92,11 @@ public class LectureService {
 
     @Transactional
     public void delete(UUID id) {
+        LecturesRecord existing = lectureRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + id));
+
+        requirePermissionForSpeaker(existing.getSpeakerId());
+
         if (!lectureRepository.deleteById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + id);
         }
@@ -89,6 +107,8 @@ public class LectureService {
         LecturesRecord lecture = lectureRepository.findById(lectureId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Lecture not found: " + lectureId));
+
+        requirePermissionForSpeaker(lecture.getSpeakerId());
 
         String oldKey = lecture.getMediaS3Key();
         String objectKey = minioService.uploadFile(lecture.getId().toString(), file);
@@ -134,6 +154,8 @@ public class LectureService {
         LecturesRecord lecture = lectureRepository.findById(lectureId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture not found: " + lectureId));
 
+        requirePermissionForSpeaker(lecture.getSpeakerId());
+
         if (lecture.getMediaS3Key() == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lecture has no media attached: " + lectureId);
         }
@@ -172,4 +194,36 @@ public class LectureService {
     }
 
     public record MediaContent(String filename, InputStream stream) {}
+
+    private void requirePermissionForSpeaker(Long speakerId) {
+        if (hasRole(AppRole.ADMIN) || hasRole(AppRole.DEVREL)) {
+            return;
+        }
+        if (hasRole(AppRole.SPEAKER)) {
+            Long current = currentUserId();
+            if (speakerId.equals(current)) {
+                return;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enough rights for this speaker");
+    }
+
+    private boolean hasRole(AppRole role) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(role.asAuthority()));
+    }
+
+    private Long currentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return userRepository.findByUsername(authentication.getName())
+                .map(user -> user.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+    }
 }
