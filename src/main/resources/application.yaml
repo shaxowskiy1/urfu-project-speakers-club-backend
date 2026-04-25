@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: java-speaker-club
+  datasource:
+    url: jdbc:postgresql://localhost:5432/javaspeakerclub
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  port: 8080
+
+s3:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: lectures-media
