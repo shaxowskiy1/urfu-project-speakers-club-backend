@@ -24,7 +24,7 @@ public class AppUserDetailsService implements UserDetailsService {
         var user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        List<GrantedAuthority> authorities = userRoleRepository.findRolesByUserId(user.getId())
+        List<SimpleGrantedAuthority> authorities = userRoleRepository.findRolesByUserId(user.getId())
                 .stream()
                 .map(AppRole::asAuthority)
                 .map(SimpleGrantedAuthority::new)
