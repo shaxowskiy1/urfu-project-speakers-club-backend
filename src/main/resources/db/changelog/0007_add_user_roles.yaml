@@ -43,10 +43,10 @@ databaseChangeLog:
             columnNames: user_id, role
             constraintName: uq_user_roles_user_role
 
-        - addCheckConstraint:
-            tableName: user_roles
-            constraintName: chk_user_roles_role
-            definition: role IN ('ADMIN', 'DEVREL', 'SPEAKER', 'USER')
+        - sql:
+            sql: |
+              ALTER TABLE user_roles
+              ADD CONSTRAINT chk_user_roles_role CHECK (role IN ('ADMIN', 'DEVREL', 'SPEAKER', 'USER'));
 
         - createIndex:
             tableName: user_roles

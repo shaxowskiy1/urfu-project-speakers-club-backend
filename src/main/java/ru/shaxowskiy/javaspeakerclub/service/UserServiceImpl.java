@@ -10,6 +10,7 @@ import ru.shaxowskiy.javaspeakerclub.repository.UserRoleRepository;
 import ru.shaxowskiy.javaspeakerclub.security.AppRole;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +37,12 @@ public class UserServiceImpl implements UserService {
                 .filter(record -> passwordEncoder.matches(password, record.getPassword()))
                 .map(this::mapToUser)
                 .orElse(null);
+    }
+
+    @Override
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id)
+                .map(this::mapToUser);
     }
 
     private User mapToUser(UsersRecord record) {
