@@ -9,7 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import ru.shaxowskiy.javaspeakerclub.dto.LectureResponse;
+import ru.shaxowskiy.javaspeakerclub.dto.UserMediaUploadResponse;
 import ru.shaxowskiy.javaspeakerclub.service.LectureService;
+import ru.shaxowskiy.javaspeakerclub.service.UserMediaService;
 
 import java.io.InputStream;
 import java.util.UUID;
@@ -20,6 +22,13 @@ import java.util.UUID;
 public class MediaController {
 
     private final LectureService lectureService;
+    private final UserMediaService userMediaService;
+
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserMediaUploadResponse uploadStandalone(@RequestPart("file") MultipartFile file) {
+        return userMediaService.upload(file);
+    }
 
     @PostMapping(value = "/upload/{lectureId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)

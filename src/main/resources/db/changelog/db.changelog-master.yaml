@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/0006_seed_initial_data.yaml
   - include:
       file: db/changelog/0007_add_user_roles.yaml
+  - include:
+      file: db/changelog/0008_create_user_media_table.yaml

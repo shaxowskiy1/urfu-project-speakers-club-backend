@@ -22,7 +22,7 @@ tags:
   - name: Speakers
     description: Поиск спикеров и управление NPS
   - name: Media
-    description: Загрузка, скачивание и удаление медиафайлов лекций
+    description: Загрузка медиа (в т.ч. без привязки к лекции), скачивание и удаление файлов лекций
 
 paths:
 
@@ -577,38 +577,71 @@ paths:
 
   # ── Media ───────────────────────────────────────────────────────────
 
-/api/media/upload/{lectureId}:
-  post:
-    tags: [Media]
-    summary: Загрузить медиафайл для лекции
-    operationId: uploadMedia
-    parameters:
-      - $ref: '#/components/parameters/MediaLectureId'
-    requestBody:
-      required: true
-      content:
-        multipart/form-data:
-          schema:
-            type: object
-            required: [file]
-            properties:
-              file:
-                type: string
-                format: binary
-                description: Загружаемый файл
-    responses:
-      '201':
-        description: Медиафайл загружен
+  /api/media/upload:
+    post:
+      tags: [Media]
+      summary: Загрузить медиафайл без привязки к лекции
+      operationId: uploadStandaloneMedia
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/LectureResponse'
-      '400':
-        description: Ошибка загрузки
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Загружаемый файл
+      responses:
+        '201':
+          description: Файл загружен, создана запись с идентификатором и ключом MinIO
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMediaUploadResponse'
+        '400':
+          description: Ошибка загрузки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/media/upload/{lectureId}:
+    post:
+      tags: [Media]
+      summary: Загрузить медиафайл для лекции
+      operationId: uploadMedia
+      parameters:
+        - $ref: '#/components/parameters/MediaLectureId'
+      requestBody:
+        required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Загружаемый файл
+      responses:
+        '201':
+          description: Медиафайл загружен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LectureResponse'
+        '400':
+          description: Ошибка загрузки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
 
   /api/media/download/{lectureId}:
     get:
@@ -1021,7 +1054,7 @@ components:
 
     LectureCreateRequest:
       type: object
-    required: [title, talkId, speakerId]
+      required: [title, talkId, speakerId]
       properties:
         title:
           type: string
@@ -1054,22 +1087,34 @@ components:
         speakerId:
           type: integer
           format: int64
-      hasMedia:
-        type: boolean
-        description: Есть ли прикрепленный медиафайл
-      mediaFilename:
-        type: string
-        nullable: true
-        description: Оригинальное имя файла
-        example: presentation.pdf
-      mediaMime:
-        type: string
-        nullable: true
-        description: MIME тип медиафайла (если доступен)
-        example: application/pdf
+        hasMedia:
+          type: boolean
+          description: Есть ли прикрепленный медиафайл
+        mediaFilename:
+          type: string
+          nullable: true
+          description: Оригинальное имя файла
+          example: presentation.pdf
+        mediaMime:
+          type: string
+          nullable: true
+          description: MIME тип медиафайла (если доступен)
+          example: application/pdf
         createdDate:
           type: string
           format: date-time
+
+    UserMediaUploadResponse:
+      type: object
+      required: [id, mediaMinioKey]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор записи о загрузке
+        mediaMinioKey:
+          type: string
+          description: Уникальный ключ объекта в MinIO
 
     # ── Roles ───────────────────────────────────────────────────────
 

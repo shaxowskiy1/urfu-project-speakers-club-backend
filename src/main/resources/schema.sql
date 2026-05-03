@@ -57,3 +57,13 @@ CREATE TABLE speaker_roles (
 
 CREATE INDEX idx_speaker_roles_speaker_id ON speaker_roles (speaker_id);
 CREATE INDEX idx_speaker_roles_name ON speaker_roles (name);
+
+CREATE TABLE user_media (
+  id UUID PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  media_minio_key VARCHAR(1024) NOT NULL UNIQUE,
+  created_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_media_users_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_user_media_user_id ON user_media (user_id);
