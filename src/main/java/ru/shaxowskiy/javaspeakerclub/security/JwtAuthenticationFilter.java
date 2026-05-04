@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import ru.shaxowskiy.javaspeakerclub.exception.HttpProblemDetailWriter;
 
 import java.io.IOException;
 
@@ -20,6 +21,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenService jwtTokenService;
+    private final HttpProblemDetailWriter problemDetailWriter;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -33,7 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Authentication authentication = jwtTokenService.toAuthentication(token);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (JwtException ex) {
-                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                problemDetailWriter.write(response, HttpStatus.UNAUTHORIZED, "Не авторизован", "Не авторизован");
                 return;
             }
         }
